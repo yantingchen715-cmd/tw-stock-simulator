@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>台股模擬投資平台</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ===== TOP NAVBAR ===== -->
+<nav class="navbar">
+  <div class="nav-left">
+    <div class="logo">📈 模擬券商</div>
+    <span class="nav-tag">練習帳戶</span>
+  </div>
+  <div class="nav-center" id="marketStatus">
+    <span class="market-dot" id="marketDot"></span>
+    <span id="marketLabel">市場狀態載入中...</span>
+    <span class="time" id="clock"></span>
+  </div>
+  <div class="nav-right">
+    <div class="account-summary">
+      <span class="label">總資產</span>
+      <span class="value" id="totalAsset">--</span>
+    </div>
+    <div class="account-summary">
+      <span class="label">現金</span>
+      <span class="value cash" id="cashDisplay">--</span>
+    </div>
+    <div class="account-summary">
+      <span class="label">損益</span>
+      <span class="value" id="totalPnl">--</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== MAIN LAYOUT ===== -->
+<div class="main-layout">
+
+  <!-- LEFT PANEL: Watchlist + Search -->
+  <aside class="left-panel">
+    <div class="panel-header">
+      <h3>自選股</h3>
+      <button class="icon-btn" onclick="openAddWatchModal()">＋ 新增</button>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="輸入代號或名稱（如 2330）" oninput="liveSearch(this.value)" />
+      <div id="searchDropdown" class="search-dropdown hidden"></div>
+    </div>
+
+    <!-- Watchlist -->
+    <div id="watchlist" class="watchlist"></div>
+  </aside>
+
+  <!-- CENTER PANEL: Chart + Order -->
+  <main class="center-panel">
+    <!-- Stock Info Header -->
+    <div class="stock-header" id="stockHeader">
+      <div class="stock-title">
+        <span class="stock-symbol" id="selectedSymbol">請點選左側個股</span>
+        <span class="stock-name" id="selectedName"></span>
+        <span class="stock-exchange" id="selectedExchange"></span>
+      </div>
+      <div class="stock-price-block">
+        <div class="current-price" id="currentPrice">--</div>
+        <div class="price-change" id="priceChange">--</div>
+      </div>
+      <div class="stock-stats" id="stockStats">
+        <div class="stat"><span class="s-label">開盤</span><span id="statOpen">--</span></div>
+        <div class="stat"><span class="s-label">最高</span><span id="statHigh">--</span></div>
+        <div class="stat"><span class="s-label">最低</span><span id="statLow">--</span></div>
+        <div class="stat"><span class="s-label">昨收</span><span id="statPrev">--</span></div>
+        <div class="stat"><span class="s-label">成交量</span><span id="statVol">--</span></div>
+        <div class="stat"><span class="s-label">市值</span><span id="statMktCap">--</span></div>
+      </div>
+    </div>
+
+    <!-- Chart Tabs -->
+    <div class="chart-tabs">
+      <button class="tab active" onclick="switchChart('1d',this)">即時</button>
+      <button class="tab" onclick="switchChart('5d',this)">5日</button>
+      <button class="tab" onclick="switchChart('1mo',this)">1月</button>
+      <button class="tab" onclick="switchChart('3mo',this)">3月</button>
+      <button class="tab" onclick="switchChart('1y',this)">1年</button>
+    </div>
+
+    <!-- Chart Area -->
+    <div class="chart-area">
+      <canvas id="priceChart"></canvas>
+      <div id="chartPlaceholder" class="chart-placeholder">
+        <div class="placeholder-icon">📊</div>
+        <p>點選左側個股以顯示走勢圖</p>
+      </div>
+    </div>
+
+    <!-- Order Panel -->
+    <div class="order-panel">
+      <div class="order-tabs">
+        <button class="order-tab active" onclick="setOrderSide('buy', this)">買進</button>
+        <button class="order-tab sell" onclick="setOrderSide('sell', this)">賣出</button>
+      </div>
+      <div class="order-form">
+        <div class="order-row">
+          <label>委託類型</label>
+          <select id="orderType">
+            <option value="market">市價</option>
+            <option value="limit">限價</option>
+          </select>
+        </div>
+        <div class="order-row" id="limitPriceRow" style="display:none">
+          <label>委託價格</label>
+          <input type="number" id="limitPrice" step="0.01" placeholder="輸入限價" />
+        </div>
+        <div class="order-row">
+          <label>股數（張 = 1000股）</label>
+          <div class="qty-control">
+            <button onclick="adjustQty(-1000)">－</button>
+            <input type="number" id="orderQty" value="1000" step="1000" min="1000" />
+            <button onclick="adjustQty(1000)">＋</button>
+          </div>
+        </div>
+        <div class="order-row">
+          <label>預估金額</label>
+          <span class="est-amount" id="estAmount">--</span>
+        </div>
+        <div class="order-row">
+          <label>可用現金</label>
+          <span class="est-amount" id="availCash">--</span>
+        </div>
+        <button class="submit-order buy" id="submitOrderBtn" onclick="submitOrder()">買進下單</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT PANEL: Holdings + Orders -->
+  <aside class="right-panel">
+    <div class="tabs-right">
+      <button class="rtab active" onclick="switchRightTab('holdings', this)">持股</button>
+      <button class="rtab" onclick="switchRightTab('orders', this)">委託紀錄</button>
+    </div>
+
+    <!-- Holdings Tab -->
+    <div id="holdingsTab" class="rtab-content">
+      <div id="holdingsList" class="holdings-list">
+        <div class="empty-state">尚無持股<br><small>開始下單進行模擬投資</small></div>
+      </div>
+      <div class="portfolio-summary" id="portfolioSummary"></div>
+    </div>
+
+    <!-- Orders Tab -->
+    <div id="ordersTab" class="rtab-content hidden">
+      <div id="ordersList" class="orders-list">
+        <div class="empty-state">尚無交易紀錄</div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ===== TOAST ===== -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- ===== MODALS ===== -->
+<div id="confirmModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="modalTitle">確認下單</h3>
+    <div id="modalBody" class="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-confirm" id="confirmBtn" onclick="confirmOrder()">確認</button>
+    </div>
+  </div>
+</div>
+
+<div id="addWatchModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>新增自選股</h3>
+    <input type="text" id="addWatchInput" placeholder="輸入台股代號（如 2330、0050）" style="width:100%;padding:10px;margin:12px 0;border-radius:6px;border:1px solid var(--border);background:var(--bg-input);color:var(--text)"/>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAddWatchModal()">取消</button>
+      <button class="btn-confirm" onclick="addToWatchlist()">新增</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
